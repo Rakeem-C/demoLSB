@@ -58,6 +58,12 @@ export function SiteHeader() {
                 )}
               </div>
             ))}
+            <Link
+              href="/admin/leads"
+              className="ml-2 px-3 py-2 text-sm font-semibold rounded-full bg-white/10 hover:bg-white/20 transition"
+            >
+              Lead Inbox
+            </Link>
           </div>
 
           <div className="hidden lg:flex items-center gap-3">
@@ -88,11 +94,18 @@ export function SiteHeader() {
                         <Link key={child?.href} href={child?.href ?? '/'} className="block py-2 text-sm opacity-80 hover:opacity-100" onClick={() => setMobileOpen(false)}>
                           {child?.label}
                         </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+              <Link
+                href="/admin/leads"
+                className="block py-3 text-sm font-semibold border-b border-white/10"
+                onClick={() => setMobileOpen(false)}
+              >
+                Lead Inbox
+              </Link>
               <div className="mt-4 flex flex-col gap-2">
                 <Link href="/contact-us" className="bg-homeguard-purple text-white text-center px-5 py-2.5 rounded-full text-sm font-semibold" onClick={() => setMobileOpen(false)}>Get A Quote</Link>
                 <a href={COMPANY.phoneTel} className="text-center text-sm font-medium py-2">Call {COMPANY.phone}</a>
