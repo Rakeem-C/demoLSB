@@ -1,0 +1,82 @@
+export const COMPANY = {
+  name: 'HomeGuard Pro Services, LLC',
+  shortName: 'HomeGuard Pro',
+  phone: '(555) 123-4567',
+  phoneTel: 'tel:5551234567',
+  altPhone: '(555) 123-4568',
+  email: 'info@homeguardpro.com',
+  address: '1200 Main Street Suite 300, Anytown, TX 78000',
+  hours: 'Mon - Sat 8 am - 6 pm',
+  googleRating: '4.9',
+  googleReviewCount: '120',
+  googleReviewUrl: '#',
+  bbbUrl: '#',
+  facebook: '#',
+  youtube: '#',
+  instagram: '#',
+  yelp: '#',
+  copyright: 'Copyright 2026 HomeGuard Pro Services, LLC',
+} as const
+
+export const IMAGES = {
+  mascot: 'https://cdn.abacus.ai/images/fd8f745d-626a-4bdb-a42a-123a438ad6c0.png',
+  logoWhite: 'https://cdn.abacus.ai/images/4667a5f6-d0bc-4a7d-b37a-bb5d88360b46.png',
+  truck: 'https://cdn.abacus.ai/images/be87c8b5-fb28-4ea9-9abe-2b10862baadc.png',
+  bbbBadge: 'https://cdn.abacus.ai/images/edc2b323-ab11-4c6a-9e9d-139fd0aadab6.png',
+  roofAerial: 'https://cdn.abacus.ai/images/4d3c4168-b811-4d1f-b9a2-3ddffaad2e9e.png',
+  roofRepair: 'https://cdn.abacus.ai/images/7b259256-6e24-40aa-977d-37f632ce7f0f.png',
+  exteriorPainting: 'https://cdn.abacus.ai/images/68be38b2-fd87-49b4-82c9-f741d85426ad.png',
+  interiorPainting: 'https://cdn.abacus.ai/images/0b08c995-dc1a-4a0a-a973-534fd917abd9.png',
+} as const
+
+export const NEIGHBORHOODS = [
+  { name: 'Alamo Heights', slug: 'alamo-heights' },
+  { name: 'Alamo Ranch', slug: 'alamo-ranch' },
+  { name: 'Canyon Springs', slug: 'canyon-springs' },
+  { name: 'Champions Ridge', slug: 'champions-ridge' },
+  { name: 'Deerfield', slug: 'deerfield' },
+  { name: 'Elm Creek', slug: 'elm-creek' },
+  { name: 'Encino Park', slug: 'encino-park' },
+  { name: 'Fair Oaks Ranch', slug: 'fair-oaks-ranch' },
+  { name: 'Hill Country Village', slug: 'hill-country-village' },
+  { name: 'Inwood', slug: 'inwood' },
+  { name: 'Mahncke Park', slug: 'mahncke-park' },
+  { name: 'Monte Vista', slug: 'monte-vista' },
+  { name: 'Oak Park-Northwood', slug: 'oak-park-northwood' },
+  { name: 'Olmos Park', slug: 'olmos-park' },
+  { name: 'Scenic Oaks', slug: 'scenic-oaks' },
+  { name: 'Shavano Park', slug: 'shavano-park' },
+  { name: 'Sonterra', slug: 'sonterra' },
+  { name: 'Stone Oak', slug: 'stone-oak' },
+  { name: 'Terrell Heights', slug: 'terrell-heights' },
+  { name: 'Terrell Hills', slug: 'terrell-hills' },
+  { name: 'The Dominion', slug: 'the-dominion' },
+  { name: 'Waterford Heights', slug: 'waterford-heights' },
+] as const
+
+export const NAV_ITEMS = [
+  { label: 'Home', href: '/' },
+  {
+    label: 'Roofing',
+    href: '/roofing',
+    children: [
+      { label: 'Roofing Hub', href: '/roofing' },
+      { label: 'Roof Repair', href: '/roof-repair' },
+      { label: 'Roof Replacement', href: '/roof-replacement' },
+      { label: 'Roof Renewal', href: '/zoobification' },
+    ],
+  },
+  {
+    label: 'Painting',
+    href: '/painting',
+    children: [
+      { label: 'Painting Hub', href: '/painting' },
+      { label: 'Exterior Painting', href: '/exterior-painting-services' },
+      { label: 'Interior Painting', href: '/interior-house-painting-services' },
+      { label: 'Our Painting Process', href: '/the-zooby-painting-process' },
+    ],
+  },
+  { label: 'About Us', href: '/about-us' },
+  { label: 'Blog', href: '/blog' },
+  { label: 'Careers', href: '/careers' },
+] as const
