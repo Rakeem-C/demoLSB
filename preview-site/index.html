@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>demoLSB Preview</title>
+  <style>
+    :root {
+      --bg: #071726;
+      --panel: rgba(10, 37, 64, 0.82);
+      --panel-soft: rgba(255, 255, 255, 0.08);
+      --text: #f8fbff;
+      --muted: rgba(248, 251, 255, 0.78);
+      --teal: #00b4c5;
+      --purple: #614ce1;
+      --gold: #ffdd73;
+      --line: rgba(255,255,255,0.14);
+      --shadow: 0 24px 80px rgba(0,0,0,0.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background:
+      radial-gradient(circle at 20% 20%, rgba(97,76,225,0.35), transparent 28%),
+      radial-gradient(circle at 80% 0%, rgba(0,180,197,0.32), transparent 24%),
+      linear-gradient(180deg, #06121d 0%, #081a2a 45%, #0a2540 100%);
+      color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.25), transparent 80%);
+      opacity: 0.45;
+    }
+    .wrap { position: relative; max-width: 1180px; margin: 0 auto; padding: 28px 20px 56px; }
+    .topbar, .card, .hero, .section { backdrop-filter: blur(18px); }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      padding: 14px 18px; background: rgba(255,255,255,0.06); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: 0.01em; }
+    .dot { width: 12px; height: 12px; border-radius: 999px; background: linear-gradient(135deg, var(--teal), var(--purple)); box-shadow: 0 0 0 6px rgba(0,180,197,0.12); }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--text); text-decoration: none; }
+    .hero {
+      margin-top: 22px; padding: 34px; border-radius: 30px; border: 1px solid var(--line); background:
+      linear-gradient(135deg, rgba(10,37,64,0.95), rgba(7,23,38,0.82));
+      box-shadow: var(--shadow);
+      display: grid; gap: 24px; grid-template-columns: 1.2fr 0.8fr;
+    }
+    h1 { margin: 0 0 14px; font-size: clamp(2.6rem, 6vw, 5.2rem); line-height: 0.95; letter-spacing: -0.04em; }
+    .lead { font-size: 1.05rem; line-height: 1.7; color: var(--muted); max-width: 56ch; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      border-radius: 999px; padding: 14px 18px; text-decoration: none; font-weight: 700;
+      border: 1px solid transparent; transition: transform .2s ease, opacity .2s ease, background .2s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.primary { background: linear-gradient(135deg, var(--purple), #7d6af3); color: white; box-shadow: 0 18px 40px rgba(97,76,225,0.35); }
+    .btn.secondary { background: rgba(255,255,255,0.08); color: var(--text); border-color: var(--line); }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+    .stat, .card { background: rgba(255,255,255,0.07); border: 1px solid var(--line); border-radius: 22px; }
+    .stat { padding: 16px; }
+    .stat strong { display: block; font-size: 1.25rem; margin-bottom: 6px; }
+    .preview {
+      min-height: 360px; border-radius: 26px; overflow: hidden; border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.32)), url('https://cdn.abacus.ai/images/4d3c4168-b811-4d1f-b9a2-3ddffaad2e9e.png') center/cover no-repeat;
+      position: relative;
+    }
+    .preview::after {
+      content: "Live preview snapshot";
+      position: absolute; left: 16px; bottom: 16px;
+      background: rgba(7,23,38,0.82); padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line);
+      font-size: 0.92rem;
+    }
+    .section { margin-top: 22px; padding: 26px; border-radius: 26px; border: 1px solid var(--line); background: rgba(255,255,255,0.05); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .card { padding: 18px; }
+    .tag { color: var(--gold); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; }
+    h2 { margin: 10px 0 12px; font-size: 1.65rem; }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .footer { margin-top: 18px; display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); }
+    @media (max-width: 900px) {
+      .hero, .grid, .stats { grid-template-columns: 1fr; }
+      .hero { padding: 24px; }
+      .topbar { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="dot"></span> demoLSB preview</div>
+      <a class="pill" href="https://github.com/Rakeem-C/demoLSB" target="_blank" rel="noreferrer">GitHub repo</a>
+    </div>
+
+    <section class="hero">
+      <div>
+        <div class="tag">HomeGuard Pro Services</div>
+        <h1>Roofing and painting with the inspection-first approach.</h1>
+        <p class="lead">
+          This preview reflects the extracted website concept: a polished home-services brand centered on roofing,
+          exterior painting, interior painting, and a direct path to quote requests.
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/Rakeem-C/demoLSB" target="_blank" rel="noreferrer">View source</a>
+          <a class="btn secondary" href="mailto:info@homeguardpro.com">Email the team</a>
+        </div>
+        <div class="stats">
+          <div class="stat"><strong>4.9 rating</strong><span>Google-style social proof</span></div>
+          <div class="stat"><strong>20+ years</strong><span>Experience message</span></div>
+          <div class="stat"><strong>Free quote</strong><span>Clear conversion CTA</span></div>
+        </div>
+      </div>
+      <div class="preview" aria-label="Website preview image"></div>
+    </section>
+
+    <section class="section">
+      <div class="tag">Services</div>
+      <h2>Roofing, painting, and maintenance guidance</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Roofing</h3>
+          <p>Inspection-first repairs, roof replacement, and roof renewal messaging.</p>
+        </div>
+        <div class="card">
+          <h3>Painting</h3>
+          <p>Exterior and interior painting positioned around prep quality and durability.</p>
+        </div>
+        <div class="card">
+          <h3>Trust</h3>
+          <p>BBB, reviews, and warranty style calls-to-action to encourage conversions.</p>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Built from the extracted Website_Copy_Request.zip contents.</span>
+        <span>GitHub repo: Rakeem-C/demoLSB</span>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
