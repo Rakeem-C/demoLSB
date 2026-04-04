@@ -10,7 +10,7 @@ export function SiteFooter() {
         <div className="max-w-[1200px] mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
             <p className="text-homeguard-red text-xl md:text-2xl font-display font-bold">
-              Call <a href={COMPANY.phoneTel} className="underline hover:no-underline">{COMPANY.phone}</a> to Book a Visit, Explore Plans and for Pricing
+              Call <a href={COMPANY.phoneTel} className="underline hover:no-underline">{COMPANY.phone}</a> to book an inspection, compare options, and request pricing.
             </p>
           </div>
           <div className="relative w-[280px] h-[140px] flex-shrink-0">

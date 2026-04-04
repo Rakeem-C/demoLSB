@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
-import { COMPANY, NAV_ITEMS, IMAGES } from '@/lib/constants'
+import { COMPANY, NAV_ITEMS } from '@/lib/constants'
 import { Phone, Clock, Facebook, Youtube, Menu, X, ChevronDown } from 'lucide-react'
 
 export function SiteHeader() {
@@ -32,8 +31,9 @@ export function SiteHeader() {
       <nav className="bg-homeguard-teal/95 backdrop-blur-sm text-white shadow-md">
         <div className="max-w-[1200px] mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex-shrink-0">
-            <div className="relative w-[140px] h-[50px]">
-              <Image src={IMAGES.logoWhite} alt="HomeGuard Pro - Professional Roofing and Painting" fill className="object-contain" priority />
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-xl font-bold tracking-wide text-white">HomeGuard Pro</span>
+              <span className="text-[10px] uppercase tracking-[0.24em] text-white/75">Roofing and Painting</span>
             </div>
           </Link>
 

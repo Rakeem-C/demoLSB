@@ -20,7 +20,6 @@ export const COMPANY = {
 
 export const IMAGES = {
   mascot: 'https://cdn.abacus.ai/images/fd8f745d-626a-4bdb-a42a-123a438ad6c0.png',
-  logoWhite: 'https://cdn.abacus.ai/images/4667a5f6-d0bc-4a7d-b37a-bb5d88360b46.png',
   truck: 'https://cdn.abacus.ai/images/be87c8b5-fb28-4ea9-9abe-2b10862baadc.png',
   bbbBadge: 'https://cdn.abacus.ai/images/edc2b323-ab11-4c6a-9e9d-139fd0aadab6.png',
   roofAerial: 'https://cdn.abacus.ai/images/4d3c4168-b811-4d1f-b9a2-3ddffaad2e9e.png',
@@ -73,7 +72,7 @@ export const NAV_ITEMS = [
       { label: 'Painting Hub', href: '/painting' },
       { label: 'Exterior Painting', href: '/exterior-painting-services' },
       { label: 'Interior Painting', href: '/interior-house-painting-services' },
-      { label: 'Our Painting Process', href: '/the-zooby-painting-process' },
+      { label: 'Our Painting Process', href: '/painting-process' },
     ],
   },
   { label: 'About Us', href: '/about-us' },

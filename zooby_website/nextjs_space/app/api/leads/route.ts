@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
         id: lead.id,
         status: lead.status,
         bookingState: lead.bookingState,
-        message: 'Your request has been received. Our team will review it shortly.',
+        scheduleUrl: `/schedule?lead=${encodeURIComponent(lead.id)}`,
+        message: 'Thanks - your request has been received. A team member will text you shortly to confirm details and scheduling.',
       },
       { status: 201 }
     );

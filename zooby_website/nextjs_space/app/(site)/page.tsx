@@ -12,10 +12,13 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div>
               <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4">
-                Roofing and Painting for <span className="text-yellow-300">the local area</span> homes
+                Roofing and Painting for <span className="text-yellow-300">local homes</span> that need a fast, trustworthy response
               </h1>
               <p className="text-lg opacity-90 mb-6 leading-relaxed">
-                HomeGuard Pro doesn&apos;t rush. HomeGuard Pro doesn&apos;t cut corners. You get work that you can be proud of for years.
+                HomeGuard Pro doesn&apos;t rush. HomeGuard Pro doesn&apos;t cut corners. You get clear estimates, fast follow-up, and work you can be proud of for years.
+              </p>
+              <p className="inline-flex rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white/90 mb-6">
+                Automationation demo: capture, qualify, and convert more home service leads.
               </p>
               <div className="flex flex-wrap items-center gap-4 mb-8">
                 <a href={COMPANY.bbbUrl} target="_blank" rel="noopener noreferrer">
@@ -116,7 +119,7 @@ export default function HomePage() {
                 </Link>
               </div>
               <div className="flex flex-wrap gap-3 mb-4">
-                <Link href="/the-zooby-painting-process" className="text-homeguard-purple text-sm font-semibold hover:underline">Our 43-Step Process</Link>
+                <Link href="/painting-process" className="text-homeguard-purple text-sm font-semibold hover:underline">Our 43-Step Process</Link>
                 <Link href="/painting-warranty" className="text-homeguard-purple text-sm font-semibold hover:underline">5-Year Warranty</Link>
               </div>
               <Link href="/painting" className="text-homeguard-purple font-semibold flex items-center gap-1 hover:gap-2 transition-all">

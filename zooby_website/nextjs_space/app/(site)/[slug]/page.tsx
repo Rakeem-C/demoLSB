@@ -73,6 +73,12 @@ const PAGE_MAP: Record<string, PageConfig> = {
     description: 'Interior painting with careful masking, clean lines, and minimal disruption to the home.',
     kind: 'service',
   },
+  'painting-process': {
+    title: 'The Painting Process',
+    eyebrow: 'Painting process',
+    description: 'A step-by-step look at how we scope, prep, protect, paint, and review the final result.',
+    kind: 'service',
+  },
   'the-zooby-painting-process': {
     title: 'The Painting Process',
     eyebrow: 'Painting process',
