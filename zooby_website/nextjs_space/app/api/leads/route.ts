@@ -2,11 +2,25 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createLeadIntake } from '@/lib/lead-inbox';
+import { sendLeadSubmissionSms } from '@/lib/sms';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const lead = await createLeadIntake(body ?? {});
+
+    try {
+      const smsResult = await sendLeadSubmissionSms({
+        firstName: lead.firstName,
+        phone: lead.phone,
+      });
+
+      if (smsResult.skipped) {
+        console.info('Lead SMS skipped:', smsResult.reason ?? 'unavailable');
+      }
+    } catch (smsError) {
+      console.warn('Lead SMS failed, continuing submission flow:', smsError);
+    }
 
     return NextResponse.json(
       {
