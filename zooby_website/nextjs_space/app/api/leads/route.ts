@@ -2,12 +2,26 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createLeadIntake } from '@/lib/lead-inbox';
+import { sendLeadSubmissionEmail } from '@/lib/email';
 import { sendLeadSubmissionSms } from '@/lib/sms';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const lead = await createLeadIntake(body ?? {});
+
+    try {
+      const emailResult = await sendLeadSubmissionEmail({
+        firstName: lead.firstName,
+        email: lead.email,
+      });
+
+      if (emailResult.skipped) {
+        console.info('Lead email skipped:', emailResult.reason ?? 'unavailable');
+      }
+    } catch (emailError) {
+      console.warn('Lead email failed, continuing submission flow:', emailError);
+    }
 
     try {
       const smsResult = await sendLeadSubmissionSms({
