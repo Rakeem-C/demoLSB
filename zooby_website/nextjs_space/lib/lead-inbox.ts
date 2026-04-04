@@ -69,6 +69,35 @@ export type LeadInboxItem = {
   timeline: LeadActivityEvent[]
 }
 
+type LeadRecordLike = {
+  id: string
+  firstName: string
+  lastName: string
+  zipCode: string
+  email: string
+  phone: string
+  contactMethod: string
+  contactTime: string
+  message: string
+  status: string
+  source?: string | null
+  bookingState?: string | null
+  serviceCategory?: string | null
+  urgency?: string | null
+  leadScore?: number | null
+  summary?: string | null
+  recommendedNextAction?: string | null
+  contactPreference?: string | null
+  preferredContactTime?: string | null
+  originalProjectDetails?: string | null
+  appointmentDate?: Date | string | null
+  appointmentTimeWindow?: string | null
+  assignedRep?: string | null
+  visitType?: string | null
+  timeline?: unknown
+  createdAt: Date
+}
+
 const demoLeadInbox: LeadInboxItem[] = [
   {
     id: 'demo-lead-1',
@@ -296,6 +325,43 @@ function formatAppointmentSummary(appointment: LeadAppointmentDetails) {
   })} · ${appointment.timeWindow} · ${appointment.assignedRep} · ${appointment.visitType}`
 }
 
+function serializeAppointment(appointment: LeadAppointmentDetails | null) {
+  if (!appointment) return null
+
+  return {
+    appointmentDate: appointment.appointmentDate,
+    appointmentTimeWindow: appointment.timeWindow,
+    assignedRep: appointment.assignedRep,
+    visitType: appointment.visitType,
+  }
+}
+
+function parseTimelineEvents(value: unknown): LeadActivityEvent[] {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((event) => {
+      if (!event || typeof event !== 'object') return null
+      const item = event as Record<string, unknown>
+      const at = item.at ? new Date(String(item.at)) : new Date()
+      return {
+        id: String(item.id ?? crypto.randomUUID()),
+        type: item.type as LeadActivityType,
+        title: String(item.title ?? ''),
+        detail: String(item.detail ?? ''),
+        at: Number.isNaN(at.getTime()) ? new Date() : at,
+      } satisfies LeadActivityEvent
+    })
+    .filter((event): event is LeadActivityEvent => Boolean(event))
+}
+
+function toPersistedTimeline(timeline: LeadActivityEvent[]) {
+  return timeline.map((event) => ({
+    ...event,
+    at: event.at.toISOString(),
+  }))
+}
+
 function inferSummary(message: string) {
   const normalized = message.replace(/\s+/g, ' ').trim()
   if (!normalized) return 'No description provided.'
@@ -488,24 +554,21 @@ function mergeLeadItems(...groups: LeadInboxItem[][]) {
   return sortNewestFirst([...byId.values()])
 }
 
-function mapLeadRecord(lead: {
-  id: string
-  firstName: string
-  lastName: string
-  zipCode: string
-  email: string
-  phone: string
-  contactMethod: string
-  contactTime: string
-  message: string
-  status: string
-  createdAt: Date
-}): LeadInboxItem {
-  const serviceCategory = inferServiceCategory(lead.message)
-  const urgency = inferUrgency(lead.message, lead.contactTime)
+function mapLeadRecord(lead: LeadRecordLike): LeadInboxItem {
+  const serviceCategory = (lead.serviceCategory as LeadServiceCategory | undefined) ?? inferServiceCategory(lead.message)
+  const urgency = (lead.urgency as LeadInboxUrgency | undefined) ?? inferUrgency(lead.message, lead.contactTime)
   const status = normalizeStatus(lead.status)
-  const bookingState = deriveBookingState(status)
-  const summary = inferSummary(lead.message)
+  const bookingState = (lead.bookingState as LeadBookingState | undefined) ?? deriveBookingState(status)
+  const summary = lead.summary ?? inferSummary(lead.message)
+  const appointment =
+    lead.appointmentDate && lead.appointmentTimeWindow && lead.assignedRep && lead.visitType
+      ? {
+          appointmentDate: new Date(lead.appointmentDate),
+          timeWindow: lead.appointmentTimeWindow,
+          assignedRep: lead.assignedRep,
+          visitType: lead.visitType,
+        }
+      : null
 
   return {
     id: lead.id,
@@ -516,22 +579,22 @@ function mapLeadRecord(lead: {
     urgency,
     status,
     bookingState,
-    source: 'Website form',
+    source: (lead.source ?? 'Website form') as LeadInboxSource,
     submittedAt: lead.createdAt,
-    leadScore: inferLeadScore(serviceCategory, urgency, lead.message),
+    leadScore: lead.leadScore ?? inferLeadScore(serviceCategory, urgency, lead.message),
     summary,
-    recommendedNextAction: inferRecommendedNextAction(urgency, serviceCategory),
+    recommendedNextAction: (lead.recommendedNextAction ?? inferRecommendedNextAction(urgency, serviceCategory)) as LeadRecommendedAction,
     email: lead.email,
     phone: lead.phone,
     zipCode: lead.zipCode,
-    contactPreference: lead.contactMethod,
-    preferredContactTime: lead.contactTime,
-    originalProjectDetails: lead.message,
+    contactPreference: lead.contactPreference ?? lead.contactMethod,
+    preferredContactTime: lead.preferredContactTime ?? lead.contactTime,
+    originalProjectDetails: lead.originalProjectDetails ?? lead.message,
     message: lead.message,
     contactMethod: lead.contactMethod,
     contactTime: lead.contactTime,
-    appointment: null,
-    timeline: [],
+    appointment,
+    timeline: parseTimelineEvents(lead.timeline),
   }
 }
 
@@ -544,11 +607,12 @@ function getWorkflowSnapshot(lead: LeadInboxItem): LeadWorkflowSnapshot {
 
   if (!store[lead.id]) {
     const appointment = lead.bookingState === 'booked' ? lead.appointment ?? inferAppointmentDetails(lead) : lead.appointment
+    const timeline = lead.timeline.length ? lead.timeline : buildTimeline({ ...lead, appointment }, appointment)
     store[lead.id] = {
       status: lead.status,
       bookingState: lead.bookingState,
       appointment,
-      timeline: buildTimeline({ ...lead, appointment }, appointment),
+      timeline,
     }
   }
 
@@ -599,24 +663,50 @@ export async function createLeadIntake(input: Partial<LeadIntakeInput>) {
     throw new Error('Missing required lead fields')
   }
 
-  let leadRecord: {
-    id: string
-    firstName: string
-    lastName: string
-    zipCode: string
-    email: string
-    phone: string
-    contactMethod: string
-    contactTime: string
-    message: string
-    status: string
-    createdAt: Date
+  const leadId = `lead_${crypto.randomUUID()}`
+  const createdAt = new Date()
+  const serviceCategory = inferServiceCategory(normalized.message)
+  const urgency = inferUrgency(normalized.message, normalized.contactTime)
+  const leadScore = inferLeadScore(serviceCategory, urgency, normalized.message)
+  const summary = inferSummary(normalized.message)
+  const recommendedNextAction = inferRecommendedNextAction(urgency, serviceCategory)
+  const baseLead: LeadInboxItem = {
+    id: leadId,
+    firstName: normalized.firstName,
+    lastName: normalized.lastName,
+    fullName: `${normalized.firstName} ${normalized.lastName}`.trim(),
+    serviceCategory,
+    urgency,
+    status: 'new',
+    bookingState: 'not-sent',
+    source: 'Website form',
+    submittedAt: createdAt,
+    leadScore,
+    summary,
+    recommendedNextAction,
+    email: normalized.email,
+    phone: normalized.phone,
+    zipCode: normalized.zipCode,
+    contactPreference: normalized.contactMethod,
+    preferredContactTime: normalized.contactTime,
+    originalProjectDetails: normalized.message,
+    message: normalized.message,
+    contactMethod: normalized.contactMethod,
+    contactTime: normalized.contactTime,
+    appointment: null,
+    timeline: [],
   }
+  const initialTimeline = buildTimeline(baseLead, null)
+  const timeline = toPersistedTimeline(initialTimeline)
+  const appointment = serializeAppointment(null)
+
+  let leadRecord: LeadRecordLike
 
   try {
     const { prisma } = await import('@/lib/db')
     leadRecord = await prisma.lead.create({
       data: {
+        id: leadId,
         firstName: normalized.firstName,
         lastName: normalized.lastName,
         zipCode: normalized.zipCode,
@@ -626,32 +716,48 @@ export async function createLeadIntake(input: Partial<LeadIntakeInput>) {
         contactTime: normalized.contactTime,
         message: normalized.message,
         agreedToTerms: normalized.agreedToTerms,
+        status: 'new',
+        source: 'Website form',
+        bookingState: 'not-sent',
+        serviceCategory,
+        urgency,
+        leadScore,
+        summary,
+        recommendedNextAction,
+        contactPreference: normalized.contactMethod,
+        preferredContactTime: normalized.contactTime,
+        originalProjectDetails: normalized.message,
+        appointmentDate: appointment?.appointmentDate ?? null,
+        appointmentTimeWindow: appointment?.appointmentTimeWindow ?? null,
+        assignedRep: appointment?.assignedRep ?? null,
+        visitType: appointment?.visitType ?? null,
+        timeline,
       },
     })
   } catch {
     leadRecord = {
-      id: `demo-${crypto.randomUUID()}`,
-      firstName: normalized.firstName,
-      lastName: normalized.lastName,
-      zipCode: normalized.zipCode,
-      email: normalized.email,
-      phone: normalized.phone,
-      contactMethod: normalized.contactMethod,
-      contactTime: normalized.contactTime,
-      message: normalized.message,
-      status: 'new',
-      createdAt: new Date(),
+      ...baseLead,
+      createdAt,
+      appointmentDate: null,
+      appointmentTimeWindow: null,
+      assignedRep: null,
+      visitType: null,
+      timeline,
     }
   }
 
-  const lead = attachWorkflow(mapLeadRecord(leadRecord))
+  const lead = attachWorkflow(mapLeadRecord({
+    ...leadRecord,
+    timeline: leadRecord.timeline ?? timeline,
+    createdAt: leadRecord.createdAt ?? createdAt,
+  }))
   const workflow = getWorkflowStore()
 
   workflow[lead.id] = {
     status: lead.status,
     bookingState: lead.bookingState,
     appointment: lead.appointment,
-    timeline: buildTimeline(lead, lead.appointment),
+    timeline: lead.timeline.length ? lead.timeline : initialTimeline,
   }
 
   const createdLead = {
@@ -788,7 +894,15 @@ export async function updateLeadWorkflow(
     const { prisma } = await import('@/lib/db')
     await prisma.lead.update({
       where: { id: leadId },
-      data: { status: snapshot.status },
+      data: {
+        status: snapshot.status,
+        bookingState: snapshot.bookingState,
+        appointmentDate: snapshot.appointment?.appointmentDate ?? null,
+        appointmentTimeWindow: snapshot.appointment?.timeWindow ?? null,
+        assignedRep: snapshot.appointment?.assignedRep ?? null,
+        visitType: snapshot.appointment?.visitType ?? null,
+        timeline: toPersistedTimeline(snapshot.timeline),
+      },
     })
   } catch {
     // Demo workflow still works from the in-memory snapshot if Prisma is unavailable.
