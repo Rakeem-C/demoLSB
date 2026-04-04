@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DeleteLeadButton } from './delete-lead-button'
 import {
   getLeadInboxItem,
   getLeadInboxItems,
@@ -296,6 +297,13 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                       </form>
                     ))}
                   </div>
+                </div>
+                <div className="space-y-3 border-t border-slate-200 pt-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Danger zone</p>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Remove the lead from the inbox and detail view if it was submitted as a duplicate or test record.
+                  </p>
+                  <DeleteLeadButton leadId={lead.id} />
                 </div>
               </CardContent>
             </Card>

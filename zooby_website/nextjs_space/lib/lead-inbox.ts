@@ -542,6 +542,17 @@ function upsertCreatedLead(lead: LeadInboxItem) {
   store.unshift(lead)
 }
 
+function removeCreatedLead(leadId: string) {
+  const store = getCreatedLeadStore()
+  const nextStore = store.filter((item) => item.id !== leadId)
+  intakeGlobal.__leadCreatedLeads = nextStore
+}
+
+function removeWorkflowSnapshot(leadId: string) {
+  const store = getWorkflowStore()
+  delete store[leadId]
+}
+
 function mergeLeadItems(...groups: LeadInboxItem[][]) {
   const byId = new Map<string, LeadInboxItem>()
 
@@ -930,4 +941,26 @@ export async function setLeadWorkflowStage(leadId: string, stage: LeadWorkflowSt
     default:
       return null
   }
+}
+
+export async function deleteLeadById(leadId: string) {
+  const existingLead = await getLeadInboxItem(leadId)
+
+  if (!existingLead) {
+    return null
+  }
+
+  try {
+    const { prisma } = await import('@/lib/db')
+    await prisma.lead.delete({
+      where: { id: leadId },
+    })
+  } catch {
+    // Demo workflow still works if Prisma is unavailable or the record is only in memory.
+  }
+
+  removeCreatedLead(leadId)
+  removeWorkflowSnapshot(leadId)
+
+  return existingLead
 }
