@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createLeadIntake } from '@/lib/lead-inbox';
+import { appendLeadActivityEvent, createLeadIntake } from '@/lib/lead-inbox';
 import { sendLeadSubmissionEmail } from '@/lib/email';
 import { sendLeadSubmissionSms } from '@/lib/sms';
 
@@ -16,11 +16,24 @@ export async function POST(request: NextRequest) {
         email: lead.email,
       });
 
+      await appendLeadActivityEvent(lead.id, {
+        type: 'notification',
+        title: emailResult.sent ? 'Confirmation email sent' : 'Confirmation email skipped',
+        detail: emailResult.sent
+          ? `A confirmation email was sent to ${lead.email}.`
+          : `Confirmation email was not sent. ${emailResult.reason ?? 'No provider was available.'}`,
+      });
+
       if (emailResult.skipped) {
         console.info('Lead email skipped:', emailResult.reason ?? 'unavailable');
       }
     } catch (emailError) {
       console.warn('Lead email failed, continuing submission flow:', emailError);
+      await appendLeadActivityEvent(lead.id, {
+        type: 'notification',
+        title: 'Confirmation email failed',
+        detail: 'The confirmation email could not be sent, but the lead was still created successfully.',
+      });
     }
 
     try {

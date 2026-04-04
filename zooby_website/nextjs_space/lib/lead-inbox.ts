@@ -30,6 +30,7 @@ export type LeadActivityType =
   | 'classified'
   | 'created'
   | 'confirmation'
+  | 'notification'
   | 'booking-link'
   | 'status'
   | 'appointment'
@@ -116,7 +117,7 @@ const demoLeadInbox: LeadInboxItem[] = [
     email: 'ariana.salazar@example.com',
     phone: '(210) 555-0184',
     zipCode: '78258',
-    message: 'Active leak over the garage after last night’s storm. Need someone out as soon as possible.',
+    message: 'Active leak over the garage after last nightâ€™s storm. Need someone out as soon as possible.',
     contactMethod: 'call',
     contactTime: 'anytime',
     contactPreference: 'call',
@@ -322,7 +323,7 @@ function formatAppointmentSummary(appointment: LeadAppointmentDetails) {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-  })} · ${appointment.timeWindow} · ${appointment.assignedRep} · ${appointment.visitType}`
+  })} Â· ${appointment.timeWindow} Â· ${appointment.assignedRep} Â· ${appointment.visitType}`
 }
 
 function serializeAppointment(appointment: LeadAppointmentDetails | null) {
@@ -414,6 +415,11 @@ export function getLeadWorkflowStageLabel(stage: LeadWorkflowStage) {
 
 function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60 * 1000)
+}
+
+function persistWorkflowSnapshot(leadId: string, snapshot: LeadWorkflowSnapshot) {
+  const store = getWorkflowStore()
+  store[leadId] = snapshot
 }
 
 function buildTimeline(lead: LeadInboxItem, appointment: LeadAppointmentDetails | null = lead.appointment): LeadActivityEvent[] {
@@ -628,6 +634,54 @@ function getWorkflowSnapshot(lead: LeadInboxItem): LeadWorkflowSnapshot {
   }
 
   return store[lead.id]
+}
+
+export async function appendLeadActivityEvent(
+  leadId: string,
+  event: Omit<LeadActivityEvent, 'id' | 'at'> & { at?: Date }
+) {
+  const lead = await getLeadInboxItem(leadId)
+
+  if (!lead) return null
+
+  const store = getWorkflowStore()
+  const snapshot = store[leadId] ?? {
+    status: lead.status,
+    bookingState: lead.bookingState,
+    appointment: lead.appointment,
+    timeline: buildTimeline(lead, lead.appointment),
+  }
+
+  const timelineEvent: LeadActivityEvent = {
+    id: `${leadId}-${event.type}-${Date.now()}`,
+    at: event.at ?? new Date(),
+    type: event.type,
+    title: event.title,
+    detail: event.detail,
+  }
+
+  snapshot.timeline = [...snapshot.timeline, timelineEvent].sort((a, b) => a.at.getTime() - b.at.getTime())
+  persistWorkflowSnapshot(leadId, snapshot)
+
+  try {
+    const { prisma } = await import('@/lib/db')
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        status: snapshot.status,
+        bookingState: snapshot.bookingState,
+        appointmentDate: snapshot.appointment?.appointmentDate ?? null,
+        appointmentTimeWindow: snapshot.appointment?.timeWindow ?? null,
+        assignedRep: snapshot.appointment?.assignedRep ?? null,
+        visitType: snapshot.appointment?.visitType ?? null,
+        timeline: toPersistedTimeline(snapshot.timeline),
+      },
+    })
+  } catch {
+    // Demo workflow still works if Prisma is unavailable.
+  }
+
+  return getLeadInboxItem(leadId)
 }
 
 function attachWorkflow(lead: LeadInboxItem): LeadInboxItem {

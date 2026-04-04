@@ -30,7 +30,7 @@ function buildEmailBody(firstName: string) {
 
 export async function sendLeadSubmissionEmail(input: SendLeadEmailInput): Promise<EmailResult> {
   const apiKey = process.env.RESEND_API_KEY
-  const fromEmail = process.env.RESEND_FROM_EMAIL
+  const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'HomeGuard Pro <onboarding@resend.dev>'
 
   if (!apiKey || !fromEmail) {
     return { sent: false, skipped: true, reason: 'Resend credentials are not configured.' }

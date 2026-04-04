@@ -44,6 +44,7 @@ const eventStyles: Record<LeadActivityEvent['type'], string> = {
   created: 'bg-blue-500',
   classified: 'bg-violet-500',
   confirmation: 'bg-teal-500',
+  notification: 'bg-indigo-500',
   'booking-link': 'bg-blue-500',
   status: 'bg-amber-500',
   appointment: 'bg-emerald-500',
