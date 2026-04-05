@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { COMPANY, IMAGES } from '@/lib/constants'
 import { NeighborhoodGrid } from '@/components/zooby/neighborhood-grid'
+import { SmsDemoSimulator } from '@/components/zooby/sms-demo-simulator'
 import { Shield, Paintbrush, Star, ArrowRight, Wrench, CheckCircle } from 'lucide-react'
 
 export default function HomePage() {
@@ -46,6 +47,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <SmsDemoSimulator />
 
       <section className="py-16">
         <div className="max-w-[1200px] mx-auto px-4">
