@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         type: 'notification',
         title: emailResult.sent ? 'Confirmation email sent' : 'Confirmation email skipped',
         detail: emailResult.sent
-          ? `A confirmation email was sent to ${lead.email}.`
+          ? `A confirmation email was sent to ${lead.email}.${emailResult.providerMessageId ? ` Resend message ID: ${emailResult.providerMessageId}.` : ''}`
           : `Confirmation email was not sent. ${emailResult.reason ?? 'No provider was available.'}`,
       });
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       await appendLeadActivityEvent(lead.id, {
         type: 'notification',
         title: 'Confirmation email failed',
-        detail: 'The confirmation email could not be sent, but the lead was still created successfully.',
+        detail: `The confirmation email could not be sent, but the lead was still created successfully. ${emailError instanceof Error ? emailError.message : ''}`.trim(),
       });
     }
 
