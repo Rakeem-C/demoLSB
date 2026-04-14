@@ -44,7 +44,7 @@ function shouldUseRealTwilio() {
 
 function shouldUseRealResend() {
   if (USE_SIMULATED_PROVIDERS || DEMO_MODE) return false
-  return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL)
+  return Boolean(process.env.RESEND_API_KEY)
 }
 
 function buildInternalAlertMessage(input: InternalAlertInput) {
