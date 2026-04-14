@@ -34,6 +34,7 @@ export type LeadActivityType =
   | 'booking-link'
   | 'status'
   | 'appointment'
+  | 'qualification'
 
 export type LeadActivityEvent = {
   id: string
@@ -68,6 +69,9 @@ export type LeadInboxItem = {
   contactTime: string
   appointment: LeadAppointmentDetails | null
   timeline: LeadActivityEvent[]
+  // Layer 2: Qualification state
+  qualificationState?: Record<string, any>
+  qualificationStage?: string
 }
 
 type LeadRecordLike = {

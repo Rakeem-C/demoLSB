@@ -48,6 +48,7 @@ const eventStyles: Record<LeadActivityEvent['type'], string> = {
   'booking-link': 'bg-blue-500',
   status: 'bg-amber-500',
   appointment: 'bg-emerald-500',
+  qualification: 'bg-fuchsia-500',
 }
 
 const workflowStageOptions: Array<{ value: LeadWorkflowStage; label: string; description: string }> = [
