@@ -1,14 +1,15 @@
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic'
 
-import { NextRequest, NextResponse } from 'next/server';
-import { appendLeadActivityEvent, createLeadIntake } from '@/lib/lead-inbox';
-import { sendLeadSubmissionEmail } from '@/lib/email';
-import { sendLeadSubmissionSms } from '@/lib/sms';
+import { NextRequest, NextResponse } from 'next/server'
+import { appendLeadActivityEvent, createLeadIntake } from '@/lib/lead-inbox'
+import { getInitialQualificationPrompt } from '@/lib/qualification'
+import { sendLeadSubmissionEmail } from '@/lib/email'
+import { sendLeadSubmissionSms, sendSmsMessage } from '@/lib/sms'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const lead = await createLeadIntake(body ?? {});
+    const body = await request.json()
+    const lead = await createLeadIntake(body ?? {})
 
     // Layer 1: Internal alert and enhanced customer acknowledgment
     // Track if we've already sent notifications to avoid duplicates
@@ -85,6 +86,16 @@ export async function POST(request: NextRequest) {
         if (smsResult.skipped) {
           console.info('Lead SMS skipped:', smsResult.reason ?? 'unavailable');
         }
+        const kickoff = getInitialQualificationPrompt(lead.firstName)
+        const kickoffResult = await sendSmsMessage({ phone: lead.phone, body: kickoff })
+
+        await appendLeadActivityEvent(lead.id, {
+          type: 'notification',
+          title: kickoffResult.sent ? 'Qualification started' : 'Qualification kickoff skipped',
+          detail: kickoffResult.sent
+            ? kickoff
+            : `Qualification kickoff was not sent. ${kickoffResult.reason ?? 'No provider was available.'}`,
+        })
       } catch (smsError) {
         console.warn('Lead SMS failed, continuing submission flow:', smsError);
       }
@@ -100,12 +111,12 @@ export async function POST(request: NextRequest) {
         message: 'Thanks - your request has been received. A team member will text you shortly to confirm details and scheduling.',
       },
       { status: 201 }
-    );
+    )
   } catch (error: any) {
-    console.error('Lead creation error:', error);
+    console.error('Lead creation error:', error)
     const message = error instanceof Error && error.message === 'Missing required lead fields'
       ? 'Please complete all required fields before submitting.'
-      : 'Failed to submit form. Please try again.';
-    return NextResponse.json({ error: message }, { status: 400 });
+      : 'Failed to submit form. Please try again.'
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 }

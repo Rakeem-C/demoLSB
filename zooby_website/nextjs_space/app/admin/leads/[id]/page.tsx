@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteLeadButton } from './delete-lead-button'
+import { LeadQualificationSimulator } from '@/components/zooby/lead-qualification-simulator'
 import {
   getLeadInboxItem,
   getLeadInboxItems,
@@ -274,6 +275,16 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                     No appointment is scheduled yet. Mark the lead as appointment booked to generate a visit record.
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xl text-navy">Qualification Flow</CardTitle>
+                <p className="text-sm text-slate-600">Use this to test the SMS qualification sequence without waiting for a real inbound text.</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <LeadQualificationSimulator leadId={lead.id} />
               </CardContent>
             </Card>
 

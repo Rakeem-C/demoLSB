@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lightning bolt favicon">
+  <rect width="64" height="64" rx="16" fill="#1AB2D8" />
+  <path
+    d="M36 8L20 32h12l-4 24 16-24H32L36 8Z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="4.5"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+</svg>
