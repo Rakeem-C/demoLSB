@@ -5,6 +5,7 @@ import { appendLeadActivityEvent, createLeadIntake } from '@/lib/lead-inbox'
 import { getInitialQualificationPrompt } from '@/lib/qualification'
 import { sendLeadSubmissionEmail } from '@/lib/email'
 import { sendLeadSubmissionSms, sendSmsMessage } from '@/lib/sms'
+import { prisma } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,50 +13,41 @@ export async function POST(request: NextRequest) {
     const lead = await createLeadIntake(body ?? {})
 
     // Layer 1: Internal alert and enhanced customer acknowledgment
-    // Track if we've already sent notifications to avoid duplicates
-    let layer1NotificationsSent = false;
-    
+    let layer1NotificationsSent = false
+
     try {
-      const { sendInternalAlert, sendCustomerAcknowledgment, logNotificationToTimeline } = await import('@/lib/notifications');
-      
-      // Send internal alert to admin
+      const { sendInternalAlert, sendCustomerAcknowledgment, logNotificationToTimeline } = await import('@/lib/notifications')
+
       const internalAlertResults = await sendInternalAlert({
         leadId: lead.id,
         firstName: lead.firstName,
         phone: lead.phone,
         email: lead.email,
         message: lead.message,
-        submittedAt: lead.submittedAt
-      });
-      
-      // Log internal alert to timeline
-      await logNotificationToTimeline(lead.id, 'internal_alert', internalAlertResults);
-      
-      // Send enhanced customer acknowledgment
+        submittedAt: lead.submittedAt,
+      })
+
+      await logNotificationToTimeline(lead.id, 'internal_alert', internalAlertResults)
+
       const customerAckResults = await sendCustomerAcknowledgment({
         leadId: lead.id,
         firstName: lead.firstName,
         phone: lead.phone,
-        email: lead.email
-      });
-      
-      // Log customer acknowledgment to timeline
-      await logNotificationToTimeline(lead.id, 'customer_ack', customerAckResults);
-      
-      layer1NotificationsSent = true;
-      
+        email: lead.email,
+      })
+
+      await logNotificationToTimeline(lead.id, 'customer_ack', customerAckResults)
+      layer1NotificationsSent = true
     } catch (notificationError) {
-      console.warn('Notification layer error, continuing with original flow:', notificationError);
-      // Fall back to original notification flow
+      console.warn('Notification layer error, continuing with original flow:', notificationError)
     }
 
-    // Original customer notification flow (only run if Layer 1 didn't succeed)
     if (!layer1NotificationsSent) {
       try {
         const emailResult = await sendLeadSubmissionEmail({
           firstName: lead.firstName,
           email: lead.email,
-        });
+        })
 
         await appendLeadActivityEvent(lead.id, {
           type: 'notification',
@@ -63,43 +55,54 @@ export async function POST(request: NextRequest) {
           detail: emailResult.sent
             ? `A confirmation email was sent to ${lead.email}.${emailResult.providerMessageId ? ` Resend message ID: ${emailResult.providerMessageId}.` : ''}`
             : `Confirmation email was not sent. ${emailResult.reason ?? 'No provider was available.'}`,
-        });
+        })
 
         if (emailResult.skipped) {
-          console.info('Lead email skipped:', emailResult.reason ?? 'unavailable');
+          console.info('Lead email skipped:', emailResult.reason ?? 'unavailable')
         }
       } catch (emailError) {
-        console.warn('Lead email failed, continuing submission flow:', emailError);
+        console.warn('Lead email failed, continuing submission flow:', emailError)
         await appendLeadActivityEvent(lead.id, {
           type: 'notification',
           title: 'Confirmation email failed',
           detail: `The confirmation email could not be sent, but the lead was still created successfully. ${emailError instanceof Error ? emailError.message : ''}`.trim(),
-        });
+        })
       }
 
       try {
         const smsResult = await sendLeadSubmissionSms({
           firstName: lead.firstName,
           phone: lead.phone,
-        });
+        })
 
         if (smsResult.skipped) {
-          console.info('Lead SMS skipped:', smsResult.reason ?? 'unavailable');
+          console.info('Lead SMS skipped:', smsResult.reason ?? 'unavailable')
         }
-        const kickoff = getInitialQualificationPrompt(lead.firstName)
-        const kickoffResult = await sendSmsMessage({ phone: lead.phone, body: kickoff })
-
-        await appendLeadActivityEvent(lead.id, {
-          type: 'notification',
-          title: kickoffResult.sent ? 'Qualification started' : 'Qualification kickoff skipped',
-          detail: kickoffResult.sent
-            ? kickoff
-            : `Qualification kickoff was not sent. ${kickoffResult.reason ?? 'No provider was available.'}`,
-        })
       } catch (smsError) {
-        console.warn('Lead SMS failed, continuing submission flow:', smsError);
+        console.warn('Lead SMS failed, continuing submission flow:', smsError)
       }
     }
+
+    const kickoff = getInitialQualificationPrompt(lead.firstName)
+    const kickoffResult = await sendSmsMessage({ phone: lead.phone, body: kickoff })
+
+    if (!kickoffResult.skipped) {
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          qualificationStage: 'service',
+          qualificationComplete: false,
+        },
+      }).catch(() => null)
+    }
+
+    await appendLeadActivityEvent(lead.id, {
+      type: 'notification',
+      title: kickoffResult.sent ? 'Qualification started' : 'Qualification kickoff skipped',
+      detail: kickoffResult.sent
+        ? kickoff
+        : `Qualification kickoff was not sent. ${kickoffResult.reason ?? 'No provider was available.'}`,
+    })
 
     return NextResponse.json(
       {

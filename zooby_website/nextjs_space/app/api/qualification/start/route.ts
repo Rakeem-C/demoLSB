@@ -1,61 +1,44 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getLeadInboxItem } from '@/lib/lead-inbox'
-import { hasActiveQualification, initializeQualification } from '@/lib/conversation-store'
-import { logQualificationActivity } from '@/lib/qualification-engine'
+import { prisma } from '@/lib/db'
+import { appendLeadActivityEvent } from '@/lib/lead-inbox'
+import { getInitialQualificationPrompt } from '@/lib/qualification'
+import { sendSmsMessage } from '@/lib/sms'
 
 export async function POST(request: NextRequest) {
   try {
     const { leadId } = await request.json()
-    
+
     if (!leadId) {
-      return NextResponse.json(
-        { error: 'Missing leadId' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing leadId' }, { status: 400 })
     }
-    
-    // Get lead details
-    const lead = await getLeadInboxItem(leadId)
+
+    const lead = await prisma.lead.findUnique({ where: { id: leadId } })
     if (!lead) {
-      return NextResponse.json(
-        { error: 'Lead not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
-    
-    // Check if qualification already started
-    if (hasActiveQualification(leadId)) {
-      return NextResponse.json(
-        { error: 'Qualification already in progress' },
-        { status: 400 }
-      )
-    }
-    
-    // Initialize qualification
-    const { state, firstMessage } = initializeQualification(leadId, lead.firstName)
-    
-    // Log activity
-    await logQualificationActivity(leadId, {
-      type: 'stage_started',
-      stage: state.stage,
-      details: `Qualification sequence started. First message: "${firstMessage}"`
+
+    const prompt = getInitialQualificationPrompt(lead.firstName)
+
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        qualificationStage: 'service',
+        qualificationComplete: false,
+      },
     })
-    
-    return NextResponse.json({
-      success: true,
-      leadId,
-      stage: state.stage,
-      systemMessage: firstMessage,
-      state
+
+    const smsResult = await sendSmsMessage({ phone: lead.phone, body: prompt })
+    await appendLeadActivityEvent(leadId, {
+      type: 'notification',
+      title: smsResult.sent ? 'Qualification started' : 'Qualification kickoff skipped',
+      detail: smsResult.sent ? prompt : `Kickoff skipped: ${smsResult.reason ?? 'provider unavailable'}`,
     })
-    
+
+    return NextResponse.json({ success: true, leadId, stage: 'service', systemMessage: prompt, sent: smsResult.sent })
   } catch (error) {
     console.error('Qualification start error:', error)
-    return NextResponse.json(
-      { error: 'Failed to start qualification' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to start qualification' }, { status: 500 })
   }
 }

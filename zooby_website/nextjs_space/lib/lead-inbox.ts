@@ -70,8 +70,11 @@ export type LeadInboxItem = {
   appointment: LeadAppointmentDetails | null
   timeline: LeadActivityEvent[]
   // Layer 2: Qualification state
-  qualificationState?: Record<string, any>
-  qualificationStage?: string
+  qualificationStage?: string | null
+  qualificationServiceNeeded?: string | null
+  qualificationUrgency?: string | null
+  qualificationPreferredCallbackTime?: string | null
+  qualificationComplete?: boolean
 }
 
 type LeadRecordLike = {
@@ -100,6 +103,11 @@ type LeadRecordLike = {
   assignedRep?: string | null
   visitType?: string | null
   timeline?: unknown
+  qualificationStage?: string | null
+  qualificationServiceNeeded?: string | null
+  qualificationUrgency?: string | null
+  qualificationPreferredCallbackTime?: string | null
+  qualificationComplete?: boolean | null
   createdAt: Date
 }
 
@@ -616,6 +624,11 @@ function mapLeadRecord(lead: LeadRecordLike): LeadInboxItem {
     contactTime: lead.contactTime,
     appointment,
     timeline: parseTimelineEvents(lead.timeline),
+    qualificationStage: lead.qualificationStage ?? null,
+    qualificationServiceNeeded: lead.qualificationServiceNeeded ?? null,
+    qualificationUrgency: lead.qualificationUrgency ?? null,
+    qualificationPreferredCallbackTime: lead.qualificationPreferredCallbackTime ?? null,
+    qualificationComplete: Boolean(lead.qualificationComplete),
   }
 }
 
