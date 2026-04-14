@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const lead = await createLeadIntake(body ?? {})
 
     // Layer 1: Internal alert and enhanced customer acknowledgment
-    let layer1NotificationsSent = false
+    let layer1CustomerAckSent = false
 
     try {
       const { sendInternalAlert, sendCustomerAcknowledgment, logNotificationToTimeline } = await import('@/lib/notifications')
@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
       })
 
       await logNotificationToTimeline(lead.id, 'customer_ack', customerAckResults)
-      layer1NotificationsSent = true
+      layer1CustomerAckSent = customerAckResults.sms.sent || customerAckResults.email.sent
     } catch (notificationError) {
       console.warn('Notification layer error, continuing with original flow:', notificationError)
     }
 
-    if (!layer1NotificationsSent) {
+    if (!layer1CustomerAckSent) {
       try {
         const emailResult = await sendLeadSubmissionEmail({
           firstName: lead.firstName,
@@ -85,8 +85,9 @@ export async function POST(request: NextRequest) {
 
     const kickoff = getInitialQualificationPrompt(lead.firstName)
     const kickoffResult = await sendSmsMessage({ phone: lead.phone, body: kickoff })
+    const shouldInitializeQualification = kickoffResult.sent || (kickoffResult.skipped && Boolean(lead.phone?.trim()))
 
-    if (!kickoffResult.skipped) {
+    if (shouldInitializeQualification) {
       await prisma.lead.update({
         where: { id: lead.id },
         data: {
@@ -98,10 +99,12 @@ export async function POST(request: NextRequest) {
 
     await appendLeadActivityEvent(lead.id, {
       type: 'notification',
-      title: kickoffResult.sent ? 'Qualification started' : 'Qualification kickoff skipped',
+      title: kickoffResult.sent ? 'Qualification started' : shouldInitializeQualification ? 'Qualification initialized' : 'Qualification kickoff skipped',
       detail: kickoffResult.sent
         ? kickoff
-        : `Qualification kickoff was not sent. ${kickoffResult.reason ?? 'No provider was available.'}`,
+        : shouldInitializeQualification
+          ? `Qualification is ready, but kickoff SMS was not sent. ${kickoffResult.reason ?? 'No provider was available.'}`
+          : `Qualification kickoff was not sent. ${kickoffResult.reason ?? 'No provider was available.'}`,
     })
 
     return NextResponse.json(
