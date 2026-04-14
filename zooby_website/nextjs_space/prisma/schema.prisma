@@ -34,6 +34,11 @@ model Lead {
   assignedRep             String?
   visitType               String?
   timeline                Json?
+  qualificationStage      String?
+  qualificationServiceNeeded String?
+  qualificationUrgency    String?
+  qualificationPreferredCallbackTime String?
+  qualificationComplete   Boolean  @default(false)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

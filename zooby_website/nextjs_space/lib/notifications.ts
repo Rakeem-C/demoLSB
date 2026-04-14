@@ -5,7 +5,7 @@
 
 import { appendLeadActivityEvent } from './lead-inbox'
 import { sendLeadSubmissionEmail } from './email'
-import { sendLeadSubmissionSms } from './sms'
+import { sendLeadSubmissionSms, sendSmsMessage } from './sms'
 
 type InternalAlertInput = {
   leadId: string
@@ -47,21 +47,6 @@ function shouldUseRealResend() {
   return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL)
 }
 
-function normalizePhone(phone: string) {
-  const trimmed = phone.trim()
-
-  if (trimmed.startsWith('+') && /^\+[1-9]\d{7,14}$/.test(trimmed)) {
-    return trimmed
-  }
-
-  const digits = trimmed.replace(/\D/g, '')
-
-  if (digits.length === 10) return `+1${digits}`
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
-
-  return null
-}
-
 function buildInternalAlertMessage(input: InternalAlertInput) {
   return [
     'New DemoLSB lead',
@@ -92,32 +77,13 @@ async function sendInternalSmsAlert(to: string, body: string): Promise<Notificat
     return sendMockSms(to, body)
   }
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID!
-  const authToken = process.env.TWILIO_AUTH_TOKEN!
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER!
-  const toNumber = normalizePhone(to)
-
-  if (!toNumber) {
-    return { sent: false, skipped: true, provider: 'twilio', reason: 'Admin phone number could not be normalized.' }
+  const result = await sendSmsMessage({ phone: to, body })
+  return {
+    sent: result.sent,
+    skipped: result.skipped,
+    provider: 'twilio',
+    reason: result.reason,
   }
-
-  const form = new URLSearchParams({ To: toNumber, From: fromNumber, Body: body })
-
-  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: form.toString(),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    throw new Error(`Twilio internal alert failed (${response.status}): ${errorText || response.statusText}`)
-  }
-
-  return { sent: true, skipped: false, provider: 'twilio' }
 }
 
 async function sendInternalEmailAlert(to: string, subject: string, body: string): Promise<NotificationResult> {
@@ -187,20 +153,6 @@ export async function sendCustomerAcknowledgment(input: CustomerAckInput): Promi
   const results: { sms: NotificationResult; email: NotificationResult } = {
     sms: { sent: false, skipped: true, provider: 'none', reason: 'No customer phone' },
     email: { sent: false, skipped: true, provider: 'none', reason: 'No customer email' },
-  }
-
-  try {
-    const conversationStore = await import('./conversation-store')
-    const qualificationEngine = await import('./qualification-engine')
-    const { state } = conversationStore.initializeQualification(input.leadId, input.firstName)
-
-    await qualificationEngine.logQualificationActivity(input.leadId, {
-      type: 'stage_started',
-      stage: state.stage,
-      details: `Qualification started via customer acknowledgment. First message: "${message}"`,
-    })
-  } catch (error) {
-    console.warn('Failed to initialize qualification state:', error)
   }
 
   try {

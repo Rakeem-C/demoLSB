@@ -3,13 +3,18 @@ type SendLeadSmsInput = {
   phone: string
 }
 
-type SmsResult = {
+type SendSmsInput = {
+  phone: string
+  body: string
+}
+
+export type SmsResult = {
   sent: boolean
   skipped: boolean
   reason?: string
 }
 
-function normalizePhone(phone: string) {
+export function normalizePhone(phone: string) {
   const trimmed = phone.trim()
 
   if (trimmed.startsWith('+') && /^\+[1-9]\d{7,14}$/.test(trimmed)) {
@@ -33,7 +38,7 @@ function buildSmsMessage(firstName: string) {
   return `Hi ${firstName}, thanks for reaching out to HomeGuard Pro. We received your request and will follow up shortly to confirm details and scheduling.`
 }
 
-export async function sendLeadSubmissionSms(input: SendLeadSmsInput): Promise<SmsResult> {
+async function sendTwilioSms({ phone, body }: SendSmsInput): Promise<SmsResult> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
   const fromNumber = process.env.TWILIO_PHONE_NUMBER
@@ -42,16 +47,16 @@ export async function sendLeadSubmissionSms(input: SendLeadSmsInput): Promise<Sm
     return { sent: false, skipped: true, reason: 'Twilio credentials are not configured.' }
   }
 
-  const toNumber = normalizePhone(input.phone)
+  const toNumber = normalizePhone(phone)
 
   if (!toNumber) {
     return { sent: false, skipped: true, reason: 'Phone number could not be normalized.' }
   }
 
-  const body = new URLSearchParams({
+  const form = new URLSearchParams({
     To: toNumber,
     From: fromNumber,
-    Body: buildSmsMessage(input.firstName),
+    Body: body,
   })
 
   const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
@@ -60,7 +65,7 @@ export async function sendLeadSubmissionSms(input: SendLeadSmsInput): Promise<Sm
       Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: body.toString(),
+    body: form.toString(),
   })
 
   if (!response.ok) {
@@ -69,4 +74,15 @@ export async function sendLeadSubmissionSms(input: SendLeadSmsInput): Promise<Sm
   }
 
   return { sent: true, skipped: false }
+}
+
+export async function sendSmsMessage(input: SendSmsInput): Promise<SmsResult> {
+  return sendTwilioSms(input)
+}
+
+export async function sendLeadSubmissionSms(input: SendLeadSmsInput): Promise<SmsResult> {
+  return sendTwilioSms({
+    phone: input.phone,
+    body: buildSmsMessage(input.firstName),
+  })
 }

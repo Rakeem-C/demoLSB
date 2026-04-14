@@ -280,6 +280,37 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
 
             <Card className="border-slate-200 bg-white">
               <CardHeader className="pb-3">
+                <CardTitle className="text-xl text-navy">Qualification State</CardTitle>
+                <p className="text-sm text-slate-600">Persisted qualification fields from the lead record.</p>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Current stage</p>
+                  <p className="mt-1 font-medium text-navy">{lead.qualificationStage ?? 'not started'}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Service needed</p>
+                    <p className="mt-1 text-slate-700">{lead.qualificationServiceNeeded ?? '—'}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Urgency</p>
+                    <p className="mt-1 text-slate-700">{lead.qualificationUrgency ?? '—'}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Preferred callback time</p>
+                    <p className="mt-1 text-slate-700">{lead.qualificationPreferredCallbackTime ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Complete</p>
+                  <p className="mt-1 font-medium text-navy">{lead.qualificationComplete ? 'Yes' : 'No'}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white">
+              <CardHeader className="pb-3">
                 <CardTitle className="text-xl text-navy">Qualification Flow</CardTitle>
                 <p className="text-sm text-slate-600">Use this to test the SMS qualification sequence without waiting for a real inbound text.</p>
               </CardHeader>
