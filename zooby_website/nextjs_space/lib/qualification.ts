@@ -74,7 +74,7 @@ export function advanceQualification(
   if (!reply) {
     return {
       state,
-      reply: 'I didn\'t catch that. What service are you looking for?',
+      reply: "I didn't catch that. What service are you looking for?",
       updates: {},
     }
   }
@@ -85,7 +85,7 @@ export function advanceQualification(
 
     return {
       state,
-      reply: 'Got it — is this something you\'re looking to get done soon, or are you just exploring options right now?',
+      reply: "Got it - is this something you're looking to get done soon, or are you just exploring options right now?",
       updates: {
         status: 'contacted',
         summaryAppend: ` Service needed: ${reply}.`,
@@ -100,7 +100,7 @@ export function advanceQualification(
 
     return {
       state,
-      reply: 'Perfect — what\'s the best time for a quick call or text back?',
+      reply: "Perfect - what's the best time for a quick call or text back?",
       updates: {
         status: urgency === 'researching' ? 'contacted' : 'qualified',
         recommendedNextAction:
@@ -122,7 +122,7 @@ export function advanceQualification(
     return {
       state,
       reply:
-        'Thanks — I\'ve got everything I need. We\'ll follow up shortly to confirm details and next steps. You can also book here: /schedule',
+        "Thanks - I've got everything I need. We'll follow up shortly to confirm details and next steps. You can also book here: /schedule",
       updates: {
         status: 'qualified',
         recommendedNextAction: 'Book inspection',
@@ -133,7 +133,7 @@ export function advanceQualification(
 
   return {
     state,
-    reply: 'You\'re all set — we\'ll follow up shortly.',
+    reply: "You're all set - we'll follow up shortly.",
     updates: {},
   }
 }

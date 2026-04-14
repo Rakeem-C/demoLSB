@@ -1,11 +1,10 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
 import { getLeadInboxItem, appendLeadActivityEvent } from '@/lib/lead-inbox'
 import { advanceQualification, getInitialQualificationState } from '@/lib/qualification'
-import { sendLeadSubmissionSms } from '@/lib/sms'
-
-const stateStore = new Map<string, any>()
+import { sendSmsMessage } from '@/lib/sms'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,11 +20,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
     }
 
-    const currentState = stateStore.get(leadId) || getInitialQualificationState()
+    let persistedState = getInitialQualificationState()
+    try {
+      const record = await prisma.lead.findUnique({
+        where: { id: leadId },
+        select: {
+          qualificationStage: true,
+          qualificationServiceNeeded: true,
+          qualificationUrgency: true,
+          qualificationPreferredCallbackTime: true,
+          qualificationComplete: true,
+        },
+      })
+      if (record?.qualificationStage) {
+        persistedState = {
+          stage: record.qualificationStage as any,
+          serviceNeeded: record.qualificationServiceNeeded,
+          urgencyLevel: record.qualificationUrgency as any,
+          preferredCallbackTime: record.qualificationPreferredCallbackTime,
+          complete: Boolean(record.qualificationComplete),
+        }
+      }
+    } catch {}
 
-    const result = advanceQualification(currentState, message)
-
-    stateStore.set(leadId, result.state)
+    const result = advanceQualification(persistedState, message)
 
     await appendLeadActivityEvent(leadId, {
       type: 'status',
@@ -40,9 +58,25 @@ export async function POST(req: NextRequest) {
     })
 
     try {
-      await sendLeadSubmissionSms({
-        firstName: lead.firstName,
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          qualificationStage: result.state.stage,
+          qualificationServiceNeeded: result.state.serviceNeeded ?? null,
+          qualificationUrgency: result.state.urgencyLevel ?? null,
+          qualificationPreferredCallbackTime: result.state.preferredCallbackTime ?? null,
+          qualificationComplete: result.state.complete,
+          status: result.updates.status ?? undefined,
+          recommendedNextAction: result.updates.recommendedNextAction ?? undefined,
+          summary: result.updates.summaryAppend ? `${lead.summary ?? ''}${result.updates.summaryAppend}`.trim() : undefined,
+        },
+      })
+    } catch {}
+
+    try {
+      await sendSmsMessage({
         phone: lead.phone,
+        body: result.reply,
       })
     } catch {}
 
@@ -51,7 +85,7 @@ export async function POST(req: NextRequest) {
       reply: result.reply,
       state: result.state,
     })
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Failed to process reply' }, { status: 500 })
   }
 }
