@@ -13,7 +13,13 @@ export async function POST(request: NextRequest) {
     const lead = await createLeadIntake(body ?? {})
 
     // Layer 1: Internal alert and enhanced customer acknowledgment
-    let layer1NotificationsSent = false
+    let customerAckResults: {
+      sms: { sent: boolean; skipped: boolean; reason?: string; simulated?: boolean; provider: 'twilio' | 'resend' | 'mock' | 'none' }
+      email: { sent: boolean; skipped: boolean; reason?: string; simulated?: boolean; provider: 'twilio' | 'resend' | 'mock' | 'none' }
+    } = {
+      sms: { sent: false, skipped: true, reason: 'Customer acknowledgment not attempted', provider: 'none' },
+      email: { sent: false, skipped: true, reason: 'Customer acknowledgment not attempted', provider: 'none' },
+    }
 
     try {
       const { sendInternalAlert, sendCustomerAcknowledgment, logNotificationToTimeline } = await import('@/lib/notifications')
@@ -29,7 +35,7 @@ export async function POST(request: NextRequest) {
 
       await logNotificationToTimeline(lead.id, 'internal_alert', internalAlertResults)
 
-      const customerAckResults = await sendCustomerAcknowledgment({
+      customerAckResults = await sendCustomerAcknowledgment({
         leadId: lead.id,
         firstName: lead.firstName,
         phone: lead.phone,
@@ -37,12 +43,20 @@ export async function POST(request: NextRequest) {
       })
 
       await logNotificationToTimeline(lead.id, 'customer_ack', customerAckResults)
-      layer1NotificationsSent = true
     } catch (notificationError) {
       console.warn('Notification layer error, continuing with original flow:', notificationError)
     }
 
-    if (!layer1NotificationsSent) {
+    const customerSmsDelivered = customerAckResults.sms.sent && !customerAckResults.sms.simulated
+    const customerEmailDelivered = customerAckResults.email.sent && !customerAckResults.email.simulated
+    console.info('Layer 1 customer acknowledgment outcomes:', {
+      sms: customerAckResults.sms,
+      email: customerAckResults.email,
+      customerSmsDelivered,
+      customerEmailDelivered,
+    })
+
+    if (!customerEmailDelivered) {
       try {
         const emailResult = await sendLeadSubmissionEmail({
           firstName: lead.firstName,
@@ -68,25 +82,44 @@ export async function POST(request: NextRequest) {
           detail: `The confirmation email could not be sent, but the lead was still created successfully. ${emailError instanceof Error ? emailError.message : ''}`.trim(),
         })
       }
+    } else {
+      console.info('Customer acknowledgment email delivered from Layer 1 provider.')
+    }
 
+    if (!customerSmsDelivered) {
       try {
+        console.info('Attempting SMS fallback send via sendLeadSubmissionSms()', { leadId: lead.id, phone: lead.phone })
         const smsResult = await sendLeadSubmissionSms({
           firstName: lead.firstName,
           phone: lead.phone,
         })
 
-        if (smsResult.skipped) {
-          console.info('Lead SMS skipped:', smsResult.reason ?? 'unavailable')
-        }
+        console.info('SMS fallback result:', smsResult)
+        await appendLeadActivityEvent(lead.id, {
+          type: 'notification',
+          title: smsResult.sent ? 'Confirmation SMS sent' : 'Confirmation SMS skipped',
+          detail: smsResult.sent
+            ? `A confirmation SMS was sent to ${lead.phone}.`
+            : `Confirmation SMS was not sent. ${smsResult.reason ?? 'No provider was available.'}`,
+        })
+
+        if (smsResult.skipped) console.info('Lead SMS skipped:', smsResult.reason ?? 'unavailable')
       } catch (smsError) {
         console.warn('Lead SMS failed, continuing submission flow:', smsError)
+        await appendLeadActivityEvent(lead.id, {
+          type: 'notification',
+          title: 'Confirmation SMS failed',
+          detail: `The confirmation SMS could not be sent, but the lead was still created successfully. ${smsError instanceof Error ? smsError.message : ''}`.trim(),
+        })
       }
+    } else {
+      console.info('Customer acknowledgment SMS delivered from Layer 1 provider.')
     }
 
     const kickoff = getInitialQualificationPrompt(lead.firstName)
     const kickoffResult = await sendSmsMessage({ phone: lead.phone, body: kickoff })
 
-    if (!kickoffResult.skipped) {
+    if (kickoffResult.sent) {
       await prisma.lead.update({
         where: { id: lead.id },
         data: {

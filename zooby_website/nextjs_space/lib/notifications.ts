@@ -38,13 +38,27 @@ const USE_SIMULATED_PROVIDERS = (process.env.USE_SIMULATED_PROVIDERS || 'false')
 const DEMO_MODE = (process.env.DEMO_MODE || 'false').toLowerCase() === 'true'
 
 function shouldUseRealTwilio() {
-  if (USE_SIMULATED_PROVIDERS || DEMO_MODE) return false
-  return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER)
+  return getTwilioAvailability().available
 }
 
 function shouldUseRealResend() {
-  if (USE_SIMULATED_PROVIDERS || DEMO_MODE) return false
-  return Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL)
+  return getResendAvailability().available
+}
+
+function getTwilioAvailability() {
+  if (USE_SIMULATED_PROVIDERS) return { available: false, reason: 'USE_SIMULATED_PROVIDERS=true' }
+  if (DEMO_MODE) return { available: false, reason: 'DEMO_MODE=true' }
+  if (!process.env.TWILIO_ACCOUNT_SID) return { available: false, reason: 'TWILIO_ACCOUNT_SID is missing' }
+  if (!process.env.TWILIO_AUTH_TOKEN) return { available: false, reason: 'TWILIO_AUTH_TOKEN is missing' }
+  if (!process.env.TWILIO_PHONE_NUMBER) return { available: false, reason: 'TWILIO_PHONE_NUMBER is missing' }
+  return { available: true, reason: 'Twilio credentials present' }
+}
+
+function getResendAvailability() {
+  if (USE_SIMULATED_PROVIDERS) return { available: false, reason: 'USE_SIMULATED_PROVIDERS=true' }
+  if (DEMO_MODE) return { available: false, reason: 'DEMO_MODE=true' }
+  if (!process.env.RESEND_API_KEY) return { available: false, reason: 'RESEND_API_KEY is missing' }
+  return { available: true, reason: 'Resend API key present' }
 }
 
 function buildInternalAlertMessage(input: InternalAlertInput) {
@@ -62,19 +76,32 @@ function buildCustomerAckMessage(firstName: string) {
   return `Hi ${firstName}, thanks for reaching out to HomeGuard Pro. Quick question so I can help you faster: what service are you looking for?`
 }
 
-async function sendMockSms(to: string, body: string): Promise<NotificationResult> {
-  console.log('[MOCK SMS]', { to, body })
-  return { sent: true, skipped: false, provider: 'mock', simulated: true }
+async function sendMockSms(to: string, body: string, reason?: string): Promise<NotificationResult> {
+  console.log('[MOCK SMS]', { to, body, reason })
+  return { sent: true, skipped: false, provider: 'mock', simulated: true, reason }
 }
 
-async function sendMockEmail(to: string, subject: string, body: string): Promise<NotificationResult> {
-  console.log('[MOCK EMAIL]', { to, subject, body })
-  return { sent: true, skipped: false, provider: 'mock', simulated: true }
+async function sendMockEmail(to: string, subject: string, body: string, reason?: string): Promise<NotificationResult> {
+  console.log('[MOCK EMAIL]', { to, subject, body, reason })
+  return { sent: true, skipped: false, provider: 'mock', simulated: true, reason }
+}
+
+async function simulateCustomerSms(to: string, body: string, reason: string): Promise<NotificationResult> {
+  console.warn('[SIMULATED CUSTOMER SMS]', { to, reason })
+  await sendMockSms(to, body, reason)
+  return { sent: false, skipped: true, provider: 'mock', simulated: true, reason }
+}
+
+async function simulateCustomerEmail(to: string, subject: string, body: string, reason: string): Promise<NotificationResult> {
+  console.warn('[SIMULATED CUSTOMER EMAIL]', { to, subject, reason })
+  await sendMockEmail(to, subject, body, reason)
+  return { sent: false, skipped: true, provider: 'mock', simulated: true, reason }
 }
 
 async function sendInternalSmsAlert(to: string, body: string): Promise<NotificationResult> {
-  if (!shouldUseRealTwilio()) {
-    return sendMockSms(to, body)
+  const twilioAvailability = getTwilioAvailability()
+  if (!twilioAvailability.available) {
+    return sendMockSms(to, body, twilioAvailability.reason)
   }
 
   const result = await sendSmsMessage({ phone: to, body })
@@ -87,8 +114,9 @@ async function sendInternalSmsAlert(to: string, body: string): Promise<Notificat
 }
 
 async function sendInternalEmailAlert(to: string, subject: string, body: string): Promise<NotificationResult> {
-  if (!shouldUseRealResend()) {
-    return sendMockEmail(to, subject, body)
+  const resendAvailability = getResendAvailability()
+  if (!resendAvailability.available) {
+    return sendMockEmail(to, subject, body, resendAvailability.reason)
   }
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -157,11 +185,12 @@ export async function sendCustomerAcknowledgment(input: CustomerAckInput): Promi
 
   try {
     if (input.phone.trim()) {
-      if (shouldUseRealTwilio()) {
+      const twilioAvailability = getTwilioAvailability()
+      if (twilioAvailability.available) {
         const smsResult = await sendLeadSubmissionSms({ firstName: input.firstName, phone: input.phone })
         results.sms = { sent: smsResult.sent, skipped: smsResult.skipped, provider: 'twilio', reason: smsResult.reason }
       } else {
-        results.sms = await sendMockSms(input.phone, message)
+        results.sms = await simulateCustomerSms(input.phone, message, `Twilio unavailable: ${twilioAvailability.reason}`)
       }
     }
   } catch (error) {
@@ -171,7 +200,8 @@ export async function sendCustomerAcknowledgment(input: CustomerAckInput): Promi
 
   try {
     if (input.email.trim()) {
-      if (shouldUseRealResend()) {
+      const resendAvailability = getResendAvailability()
+      if (resendAvailability.available) {
         const emailResult = await sendLeadSubmissionEmail({ firstName: input.firstName, email: input.email })
         results.email = {
           sent: emailResult.sent,
@@ -180,7 +210,12 @@ export async function sendCustomerAcknowledgment(input: CustomerAckInput): Promi
           reason: emailResult.reason,
         }
       } else {
-        results.email = await sendMockEmail(input.email, 'HomeGuard Pro received your request', message)
+        results.email = await simulateCustomerEmail(
+          input.email,
+          'HomeGuard Pro received your request',
+          message,
+          `Resend unavailable: ${resendAvailability.reason}`
+        )
       }
     }
   } catch (error) {
@@ -199,10 +234,10 @@ export async function logNotificationToTimeline(
   try {
     const details = [
       results.sms.sent
-        ? `${notificationType === 'internal_alert' ? 'Internal alert' : 'Customer acknowledgment'} SMS sent via ${results.sms.provider}${results.sms.simulated ? ' (simulated)' : ''}`
+        ? `${notificationType === 'internal_alert' ? 'Internal alert' : 'Customer acknowledgment'} SMS sent via ${results.sms.provider}${results.sms.simulated ? ' (simulated - not delivered)' : ''}`
         : `${notificationType === 'internal_alert' ? 'Internal alert' : 'Customer acknowledgment'} SMS skipped: ${results.sms.reason}`,
       results.email.sent
-        ? `${notificationType === 'internal_alert' ? 'Internal alert' : 'Customer acknowledgment'} email sent via ${results.email.provider}${results.email.simulated ? ' (simulated)' : ''}`
+        ? `${notificationType === 'internal_alert' ? 'Internal alert' : 'Customer acknowledgment'} email sent via ${results.email.provider}${results.email.simulated ? ' (simulated - not delivered)' : ''}`
         : `${notificationType === 'internal_alert' ? 'Internal alert' : 'Customer acknowledgment'} email skipped: ${results.email.reason}`,
     ]
       .filter(Boolean)
