@@ -75,6 +75,14 @@ export async function POST(request: NextRequest) {
           phone: lead.phone,
         })
 
+        await appendLeadActivityEvent(lead.id, {
+          type: 'notification',
+          title: smsResult.sent ? 'Confirmation SMS sent' : 'Confirmation SMS skipped',
+          detail: smsResult.sent
+            ? `A confirmation SMS was sent to ${lead.phone}.`
+            : `Confirmation SMS was not sent. ${smsResult.reason ?? 'No provider was available.'}`,
+        })
+
         if (smsResult.skipped) {
           console.info('Lead SMS skipped:', smsResult.reason ?? 'unavailable')
         }
